@@ -28,13 +28,33 @@ pipeline {
       }
     }
     stage('Run Container') {
-                steps {
-                    script {
-                        // Run docker container instance
-                        bat "docker run -d --name ${APP_NAME} -p 8100:8100 ${IMAGE_NAME}:${IMAGE_TAG}"
-                    }
-                }
+        steps {
+            script {
+
+                // Stop container if running
+                bat """
+                docker ps -q --filter "name=${APP_NAME}" > tmp.txt
+                for /f %%i in (tmp.txt) do (
+                    echo Stopping running container...
+                    docker stop ${APP_NAME}
+                )
+                """
+
+                // Remove container if exists
+                bat """
+                docker ps -aq --filter "name=${APP_NAME}" > tmp2.txt
+                for /f %%i in (tmp2.txt) do (
+                    echo Removing old container...
+                    docker rm ${APP_NAME}
+                )
+                """
+
+                // Run new container
+                bat "docker run -d --name ${APP_NAME} -p ${APP_PORT}:${APP_PORT} ${IMAGE_NAME}:${IMAGE_TAG}"
             }
+        }
+    }
+
     stage('K8s Container Deployment') {
       steps {
         // Use the kubeconfig secret file saved in Jenkins credentials
